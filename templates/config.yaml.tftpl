@@ -1,0 +1,20 @@
+# Seeded once by Terraform. Hermes may append runtime-detected
+# fields (e.g. context_length) on first boot; Terraform ignores changes to this
+# file after the initial upload so it never fights the running gateway.
+model:
+  provider: azure-foundry
+  base_url: ${base_url}
+  api_mode: chat_completions
+  auth_mode: entra_id
+  default: ${model_name}
+  entra:
+    scope: https://ai.azure.com/.default
+
+database:
+  # /opt/data is a persistent NFS Azure Files share; the rollback journal keeps
+  # things simple and portable across mounts.
+  journal_mode: delete
+
+terminal:
+  backend: local
+  cwd: "."

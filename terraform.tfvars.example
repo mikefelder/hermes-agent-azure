@@ -1,0 +1,58 @@
+# Region (must offer the chosen model). gpt-5.5 is available in
+# eastus2, swedencentral, westus3, and eastus.
+location            = "eastus2"
+resource_group_name = "rg-hermes"
+prefix              = "hermes"
+
+# ---- Foundry model ---------------------------------------------------------
+model_name     = "gpt-5.5"
+model_version  = "2026-04-24"
+model_sku_name = "GlobalStandard"
+model_capacity = 50
+
+# ---- Image -----------------------------------------------------------------
+# false (default): pull the prebuilt public image (fast).
+# true: build Hermes from the configured Git repository via ACR.
+build_image_from_source = false
+# public_image = "docker.io/nousresearch/hermes-agent@sha256:16788311e2fa3035456bdc1bafb8ec2b1777db64ebf020af9bb7eb73c3712c9e"
+# image_tag                = "v2026.8.3"
+# hermes_source_repository = "https://github.com/NousResearch/hermes-agent.git"
+# hermes_source_ref        = "v2026.8.3"
+# source_context_path      = "../hermes-agent" # optional local checkout override
+
+# ---- App access (macOS & iOS apps connect here) ----------------------------
+dashboard_username = "hermes"
+
+# Recommended private access. Create svc:hermes, tag:hermes, the service
+# auto-approver/grant, and an auth_keys OAuth credential in Tailscale first.
+enable_tailscale           = false
+tailscale_service_name     = "hermes"
+tailscale_tailnet_dns_name = "" # e.g. example-tailnet.ts.net
+tailscale_tag              = "tag:hermes"
+
+# Key Vault secret name only. Never put the OAuth secret value in this file.
+tailscale_oauth_client_secret_name = "tailscale-oauth-client-secret"
+
+# Keep restricted ACA ingress during the first Tailscale rollout. Set false
+# only after the Tailscale HTTPS and WebSocket paths have been verified.
+enable_public_ingress = true
+
+# Fail closed while public ingress is enabled. Add approved IPv4 CIDRs using /32.
+allowed_ingress_ips = []
+
+# Explicit public-access escape hatch. When true, allowed_ingress_ips must be [].
+allow_unrestricted_ingress = false
+
+# ---- Optional messaging platform secret names -------------------------------
+# Populate these secrets in the dedicated Key Vault before the full apply.
+# gateway_secret_names = {
+#   TELEGRAM_BOT_TOKEN = "telegram-bot-token"
+#   DISCORD_BOT_TOKEN  = "discord-bot-token"
+# }
+# gateway_env = {
+#   TELEGRAM_ALLOWED_USERS = "123,456"
+# }
+
+# ---- Runtime sizing --------------------------------------------------------
+container_cpu    = 2.0
+container_memory = "4Gi"
