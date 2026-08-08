@@ -34,7 +34,7 @@ apps connect to (WebSocket at `/hermes/api/ws`), behind HTTPS basic auth.
 
 ## Architecture
 
-<!-- mermaid-checked: no \n, no em-dash/en-dash, no {} in labels, subgraphs are id["label"], arrows are -->|"label"|, all subgraphs closed by end, ids unique -->
+
 ```mermaid
 flowchart LR
   subgraph ClientAccess["Client access"]
