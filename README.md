@@ -35,52 +35,7 @@ apps connect to (WebSocket at `/hermes/api/ws`), behind HTTPS basic auth.
 ## Architecture
 
 
-```mermaid
-flowchart LR
-  subgraph ClientAccess["Client access"]
-    Clients["macOS and iOS apps"]
-    Tailnet["Tailscale Service - recommended"]
-    PublicIngress["Restricted ACA ingress - optional"]
-  end
-
-  subgraph ContainerApps["Azure Container Apps environment - VNet integrated"]
-    Tailscale["Tailscale userspace sidecar"]
-    Gateway["Hermes gateway and web server"]
-    Bootstrap["One-time secret bootstrap job"]
-  end
-
-  subgraph PrivateServices["Private data plane"]
-    KeyVault[("Key Vault via private endpoint")]
-    FileShare[("Azure Files NFS via private endpoint")]
-  end
-
-  subgraph Inference["Microsoft Foundry"]
-    Foundry["Azure AI Services account"]
-    Model["Model deployment"]
-  end
-
-  subgraph Operations["Build and operations"]
-    Identity["User-assigned managed identity"]
-    Registry["Azure Container Registry - optional"]
-    Logs[("Log Analytics workspace")]
-  end
-
-  Clients -->|"private HTTPS and WebSocket"| Tailnet
-  Tailnet -->|"service routing"| Tailscale
-  Tailscale -->|"localhost port 9119"| Gateway
-  Clients -.->|"optional public HTTPS"| PublicIngress
-  PublicIngress -->|"port 9119"| Gateway
-  Gateway -->|"keyless inference"| Model
-  Foundry -->|"hosts"| Model
-  Gateway -->|"secret references"| KeyVault
-  Gateway -->|"persistent opt data mount"| FileShare
-  Gateway -->|"container logs"| Logs
-  Bootstrap -.->|"one-time secret seeding"| KeyVault
-  Identity -.->|"authorizes inference"| Foundry
-  Identity -.->|"reads secrets"| KeyVault
-  Identity -.->|"pulls private image"| Registry
-  Registry -.->|"optional source build image"| Gateway
-```
+![Reference architecture diagram](docs/images/architecture.png)
 
 Key Vault and Azure Files expose no public data-plane path. The Container App
 reaches both through VNet private endpoints, while its user-assigned managed
