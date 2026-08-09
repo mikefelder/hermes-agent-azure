@@ -33,6 +33,13 @@ tailscale_tag              = "tag:hermes"
 # Key Vault secret name only. Never put the OAuth secret value in this file.
 tailscale_oauth_client_secret_name = "tailscale-oauth-client-secret"
 
+# OpenAI-compatible API server for API clients (iOS app, OpenAI SDKs).
+# Binds to 127.0.0.1:8642 and is published only over Tailscale on port 8443.
+# Requires enable_tailscale, a tcp:8443 grant + Service endpoint in the tailnet
+# policy, and the Key Vault secret below populated out of band.
+enable_api_server          = false
+api_server_key_secret_name = "hermes-api-server-key"
+
 # Keep restricted ACA ingress during the first Tailscale rollout. Set false
 # only after the Tailscale HTTPS and WebSocket paths have been verified.
 enable_public_ingress = true

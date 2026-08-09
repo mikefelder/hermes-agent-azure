@@ -314,6 +314,27 @@ variable "enable_secret_bootstrap" {
   default     = false
 }
 
+variable "enable_api_server" {
+  type        = bool
+  description = <<-EOT
+    Run Hermes' OpenAI-compatible API server on loopback and publish it over the
+    Tailscale Service on a second HTTPS port. Requires enable_tailscale and a
+    populated api_server_key_secret_name secret in the dedicated Key Vault.
+  EOT
+  default     = false
+}
+
+variable "api_server_key_secret_name" {
+  type        = string
+  description = "Key Vault secret holding the Hermes API_SERVER_KEY bearer token. Name only, never the value."
+  default     = "hermes-api-server-key"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9-]{1,127}$", var.api_server_key_secret_name))
+    error_message = "api_server_key_secret_name must be a valid Azure Key Vault secret name."
+  }
+}
+
 # =============================================================================
 # Extra gateway environment (messaging platform config, etc.)
 # =============================================================================

@@ -29,6 +29,15 @@ locals {
   tailscale_service_id            = "svc:${var.tailscale_service_name}"
   tailscale_service_url           = var.enable_tailscale ? "https://${var.tailscale_service_name}.${var.tailscale_tailnet_dns_name}" : null
 
+  # OpenAI-compatible API server. Bound to loopback inside the pod and reached
+  # only through the Tailscale sidecar on a second HTTPS port, so it is never
+  # published on the public Azure ingress (which targets the dashboard port).
+  api_server_port       = 8642
+  api_server_serve_port = 8443
+  api_server_url = var.enable_api_server && var.enable_tailscale ? (
+    "${local.tailscale_service_url}:${local.api_server_serve_port}"
+  ) : null
+
   network_cidrs = {
     vnet = var.vnet_address_space
     aca  = var.aca_subnet_prefix
@@ -66,7 +75,11 @@ locals {
     { name = "AZURE_FOUNDRY_BASE_URL", value = local.foundry_base_url },
     # Makes DefaultAzureCredential select this user-assigned managed identity.
     { name = "AZURE_CLIENT_ID", value = azurerm_user_assigned_identity.hermes.client_id },
-    ], [
+    ], var.enable_api_server ? [
+    { name = "API_SERVER_ENABLED", value = "true" },
+    { name = "API_SERVER_HOST", value = "127.0.0.1" },
+    { name = "API_SERVER_PORT", value = tostring(local.api_server_port) },
+    ] : [], [
     for k, v in var.gateway_env : { name = k, value = v }
   ])
 
@@ -76,6 +89,8 @@ locals {
       HERMES_DASHBOARD_BASIC_AUTH_PASSWORD = "hermes-dashboard-password"
       HERMES_DASHBOARD_BASIC_AUTH_SECRET   = "hermes-dashboard-signing-secret"
     },
+    # Normalizes to the container-app secret name "api-server-key".
+    var.enable_api_server ? { API_SERVER_KEY = var.api_server_key_secret_name } : {},
     var.gateway_secret_names,
   )
 
@@ -88,7 +103,7 @@ locals {
     var.enable_tailscale ? [local.tailscale_container_secret_name] : [],
   )
 
-  reserved_env_names = toset([
+  reserved_env_names = toset(concat([
     "HERMES_UID",
     "HERMES_GID",
     "HERMES_DASHBOARD",
@@ -97,7 +112,9 @@ locals {
     "HERMES_DASHBOARD_BASIC_AUTH_USERNAME",
     "AZURE_FOUNDRY_BASE_URL",
     "AZURE_CLIENT_ID",
-  ])
+    ],
+    var.enable_api_server ? ["API_SERVER_ENABLED", "API_SERVER_HOST", "API_SERVER_PORT"] : [],
+  ))
 
   # Container App secret store: normalized secret name => Key Vault reference.
   container_secrets = merge(
@@ -532,6 +549,11 @@ resource "azurerm_container_app" "hermes" {
     }
 
     precondition {
+      condition     = !var.enable_api_server || var.enable_tailscale
+      error_message = "enable_api_server requires enable_tailscale: the API server binds to loopback and is only reachable through the Tailscale sidecar."
+    }
+
+    precondition {
       condition     = var.container_memory == format("%gGi", var.container_cpu * 2)
       error_message = "container_memory must equal twice container_cpu for a supported Consumption workload combination."
     }
@@ -665,6 +687,7 @@ resource "azurerm_container_app" "hermes" {
           done
 
           /usr/local/bin/tailscale serve --service=${local.tailscale_service_id} --https=443 http://127.0.0.1:9119
+          ${var.enable_api_server ? "/usr/local/bin/tailscale serve --service=${local.tailscale_service_id} --https=${local.api_server_serve_port} http://127.0.0.1:${local.api_server_port}" : ":"}
           wait "$child_pid"
         EOT
         ]

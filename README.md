@@ -27,10 +27,17 @@ changes into an application fork.
 | Private endpoints + private DNS zones | Reach the NFS share and Key Vault privately from the VNet |
 | Container Apps environment + Hermes app | Runs `gateway run` with the web/app server on port 9119 |
 | (optional) Tailscale sidecar | Advertises a stable `svc:hermes` HTTPS endpoint over the tailnet using userspace networking |
+| (optional) Hermes API server | OpenAI-compatible `/v1/...` server on loopback `127.0.0.1:8642`, published only over Tailscale on port `8443` |
 | (optional) Container Registry | Only when building the cloned repo from source |
 
 The gateway runs the messaging gateway **and** the web server that the native
 apps connect to (WebSocket at `/hermes/api/ws`), behind HTTPS basic auth.
+
+The web dashboard and the API server are two different surfaces. Browsers and
+the dashboard WebSocket use port `443`; OpenAI-compatible API clients (the iOS
+app, OpenAI SDKs, `curl /v1/models`) must use port `8443` with an
+`Authorization: Bearer` key. Pointing an API client at `443` returns the
+dashboard login redirect, not JSON.
 
 ## Architecture
 
@@ -68,6 +75,7 @@ flowchart LR
   Clients -->|"private HTTPS and WebSocket"| Tailnet
   Tailnet -->|"service routing"| Tailscale
   Tailscale -->|"localhost port 9119"| Gateway
+  Tailscale -->|"localhost port 8642 - API server"| Gateway
   Clients -.->|"optional public HTTPS"| PublicIngress
   PublicIngress -->|"port 9119"| Gateway
   Gateway -->|"keyless inference"| Model
@@ -200,6 +208,7 @@ Populate these required secrets using the approved path:
 |---|---|
 | `hermes-dashboard-password` | Dashboard basic-auth password |
 | `hermes-dashboard-signing-secret` | Dashboard session-signing secret |
+| `hermes-api-server-key` | Bearer key for the OpenAI-compatible API server. Only when `enable_api_server = true` (see section 3.5) |
 
 Review and apply only the three temporary resources:
 
@@ -261,7 +270,9 @@ though the sidecar must use ephemeral local state. Terraform therefore sets
 `containerboot`, waits until `tailscale status --json` reports a `Running`
 backend, and only then runs `tailscale serve --service=svc:hermes`. Preserve
 this ordering: applying the Serve configuration before login completes can
-leave the node connected without an active Service endpoint.
+leave the node connected without an active Service endpoint. When
+`enable_api_server = true`, the sidecar applies a second Serve mapping that
+fronts the loopback API server on HTTPS port `8443`.
 
 #### 3.1 Add the tag and access policy
 
@@ -284,23 +295,25 @@ Do not replace existing groups, grants, tag owners, or auto-approvers. Replace
     {
       "src": ["you@example.com"],
       "dst": ["svc:hermes"],
-      "ip": ["tcp:443"]
+      "ip": ["tcp:443", "tcp:8443"]
     }
   ]
 }
 ```
 
 For multiple users, define a group such as `group:hermes-users` in the policy
-and use that group as the grant's `src`. Keep port `443` as the only permitted
-destination unless another protocol is deliberately added. Save the policy and
-resolve any validation errors before continuing.
+and use that group as the grant's `src`. Port `443` serves the web dashboard and
+port `8443` serves the OpenAI-compatible API server; omit `tcp:8443` when
+`enable_api_server` stays `false`, and add no other destination ports unless
+another protocol is deliberately added. Save the policy and resolve any
+validation errors before continuing.
 
 #### 3.2 Create the Tailscale Service
 
 1. Open [Services](https://login.tailscale.com/admin/services).
 2. Select **Advertise**, then **Define a Service**.
 3. Set the Service name to `hermes`. This creates `svc:hermes`.
-4. Add endpoint `tcp:443`.
+4. Add endpoint `tcp:443`, and `tcp:8443` when the API server is enabled.
 5. Optionally assign a descriptive service tag, then select **Add service**.
 
 The service receives a stable MagicDNS name of the form
@@ -384,6 +397,64 @@ allow_unrestricted_ingress = false
 The Tailscale image is pinned by digest in Terraform. Update that digest only
 after reviewing and verifying a specific upstream Tailscale release.
 
+#### 3.5 Enable the OpenAI-compatible API server
+
+The web dashboard on port `443` is a browser surface. API clients need Hermes'
+OpenAI-compatible API server, which Terraform binds to `127.0.0.1:8642` and
+publishes only through the Tailscale sidecar on HTTPS port `8443`. It is never
+reachable through the public Azure ingress.
+
+Seed the bearer key first. Generate a long random value locally, keep it in a
+password manager, and paste it at the hidden prompt. Repeat the temporary
+bootstrap-job lifecycle from section 2, using the `seed-api` action:
+
+```bash
+python3 -c 'import secrets; print("sk-hermes-" + secrets.token_urlsafe(32))'
+
+python3 scripts/seed-key-vault-via-job.py seed-api
+python3 scripts/seed-key-vault-via-job.py status
+python3 scripts/seed-key-vault-via-job.py scrub
+```
+
+Then enable the server. `enable_api_server` requires `enable_tailscale`, since
+the API server has no other reachable path:
+
+```hcl
+enable_api_server = true
+
+# Key Vault secret name only. Never put the key value in this file.
+api_server_key_secret_name = "hermes-api-server-key"
+```
+
+Re-applying with a different value in that Key Vault secret rotates the key on
+the next revision, and every API client must be updated at the same time.
+Confirm the Tailscale grant and Service endpoint include `tcp:8443` from
+sections 3.1 and 3.2, or the port fails closed at the tailnet.
+
+Order matters: seed the Key Vault secret and update the tailnet policy first,
+then run the full apply in section 4, then verify with section 5 step 4. A
+revision that references a Key Vault secret which does not yet exist fails to
+provision.
+
+To confirm which secrets exist without a private data-plane route, list them
+through the ARM management plane. It returns names and attributes only, never
+values, and is unaffected by the vault firewall. The response is paginated, so
+follow `nextLink`:
+
+```bash
+KV="$(terraform output -raw key_vault_name)"
+SUB="$(az account show --query id -o tsv)"
+URL="https://management.azure.com/subscriptions/$SUB/resourceGroups/$(terraform output -raw resource_group_name)/providers/Microsoft.KeyVault/vaults/$KV/secrets?api-version=2024-11-01"
+while [ -n "$URL" ] && [ "$URL" != "None" ]; do
+  az rest --method get --url "$URL" --query "value[].[name, properties.attributes.enabled]" -o tsv
+  URL="$(az rest --method get --url "$URL" --query nextLink -o tsv)"
+done
+```
+
+Skip the seeding above if `hermes-api-server-key` is already present. Secret
+values are deliberately unreadable from an unprivileged network location; verify
+the value functionally with section 5 step 4 instead.
+
 ### 4. Plan and deploy the complete stack
 
 Do not continue until every configured Key Vault secret exists. During the
@@ -444,6 +515,22 @@ request is acceptable because either confirms that Tailscale routing, TLS, and
 Hermes authentication are active. A DNS, timeout, or TLS error is not. Then
 connect the Hermes macOS or iOS app to the same URL with the configured
 dashboard credentials and confirm its WebSocket connection works.
+
+4. Verify the API surface separately. This step applies only after section 3.5
+   has been completed **and** a full `terraform apply` has run: `api_server_url`
+   is an output, so it does not exist in state until then, and querying it
+   earlier fails with `Output "api_server_url" not found`. The request must
+   return JSON, not a login redirect:
+
+```bash
+curl --silent --show-error --fail \
+  -H "Authorization: Bearer $HERMES_API_KEY" \
+  "$(terraform output -raw api_server_url)/v1/models"
+```
+
+Point the iOS app at `api_server_url` (the `:8443` URL), leave the username
+blank so it sends the key as a Bearer token, and enter the API key as the
+secret. The dashboard URL on port `443` is not a valid API base URL.
 
 Only after browser and native-client verification, disable the Azure endpoint:
 

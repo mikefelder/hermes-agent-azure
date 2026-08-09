@@ -133,7 +133,12 @@ def status(base_url: str) -> None:
 
 
 def seed(base_url: str, mode: str) -> None:
-    label = "New Hermes dashboard password" if mode == "dashboard" else "Tailscale OAuth client secret"
+    labels = {
+        "dashboard": "New Hermes dashboard password",
+        "tailscale": "Tailscale OAuth client secret",
+        "api": "Hermes API server key",
+    }
+    label = labels[mode]
     secret_value = getpass.getpass(f"{label} (20+ characters): ")
     confirmation = getpass.getpass(f"Confirm {label.lower()}: ")
     if secret_value != confirmation:
@@ -185,7 +190,7 @@ def seed(base_url: str, mode: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "action", choices=("seed", "seed-tailscale", "status", "scrub")
+        "action", choices=("seed", "seed-tailscale", "seed-api", "status", "scrub")
     )
     args = parser.parse_args()
 
@@ -194,6 +199,8 @@ def main() -> None:
         seed(base_url, "dashboard")
     elif args.action == "seed-tailscale":
         seed(base_url, "tailscale")
+    elif args.action == "seed-api":
+        seed(base_url, "api")
     elif args.action == "status":
         status(base_url)
     else:

@@ -80,6 +80,8 @@ resource "azurerm_container_app_job" "secret_bootstrap" {
           }
         elif bootstrap_mode == "tailscale":
           values = {os.environ["TAILSCALE_SECRET_NAME"]: secret_value}
+        elif bootstrap_mode == "api":
+          values = {os.environ["API_SERVER_KEY_SECRET_NAME"]: secret_value}
         else:
           raise ValueError("Unsupported bootstrap mode")
         for name, value in values.items():
@@ -113,6 +115,11 @@ resource "azurerm_container_app_job" "secret_bootstrap" {
       env {
         name  = "TAILSCALE_SECRET_NAME"
         value = var.tailscale_oauth_client_secret_name
+      }
+
+      env {
+        name  = "API_SERVER_KEY_SECRET_NAME"
+        value = var.api_server_key_secret_name
       }
     }
   }

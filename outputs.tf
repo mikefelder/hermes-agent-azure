@@ -13,6 +13,11 @@ output "tailscale_service_url" {
   value       = local.tailscale_service_url
 }
 
+output "api_server_url" {
+  description = "OpenAI-compatible API base URL over Tailscale, or null when the API server is disabled."
+  value       = local.api_server_url
+}
+
 output "container_app_name" {
   description = "Container App resource name for Azure CLI operations."
   value       = azurerm_container_app.hermes.name
@@ -71,16 +76,15 @@ output "secret_bootstrap_job_name" {
 output "next_steps" {
   description = "What to do after apply."
   value       = <<-EOT
-     1. Retrieve the dashboard password from the approved secret-management workflow.
-       Key Vault: ${azurerm_key_vault.hermes.name}
-       Secret:    hermes-dashboard-password
-     2. Open the preferred app URL in a browser to confirm the login page loads:
-       ${var.enable_tailscale ? local.tailscale_service_url : try(format("https://%s", azurerm_container_app.hermes.ingress[0].fqdn), "Ingress disabled")}
-    3. In the macOS / iOS Hermes app: connect to a remote gateway using
-       Gateway URL:  ${var.enable_tailscale ? local.tailscale_service_url : try(format("https://%s", azurerm_container_app.hermes.ingress[0].fqdn), "Ingress disabled")}
-         Username:     ${var.dashboard_username}
-         Password:     (from step 1)
-     4. To enable a messaging platform, add its Key Vault secret name to
+    1. Retrieve the dashboard password from the approved secret-management workflow.
+         Key Vault: ${azurerm_key_vault.hermes.name}
+         Secret:    hermes-dashboard-password
+    2. Open the dashboard in a browser to confirm the login page loads:
+         ${var.enable_tailscale ? local.tailscale_service_url : try(format("https://%s", azurerm_container_app.hermes.ingress[0].fqdn), "Ingress disabled")}
+         Username:  ${var.dashboard_username}
+         Password:  (from step 1)
+    3. ${var.enable_api_server ? "Point API clients (iOS app, OpenAI SDKs) at the API server, not the dashboard:\n         Base URL:  ${local.api_server_url}\n         Auth:      Authorization: Bearer <${var.api_server_key_secret_name}>\n         Verify:    curl -H \"Authorization: Bearer $KEY\" ${local.api_server_url}/v1/models" : "API server disabled. Set enable_api_server = true to expose /v1/... over Tailscale."}
+    4. To enable a messaging platform, add its Key Vault secret name to
        gateway_secret_names, populate that secret out of band, and re-apply.
     5. Tail logs:
          az containerapp logs show -n ${azurerm_container_app.hermes.name} -g ${azurerm_resource_group.hermes.name} --follow
