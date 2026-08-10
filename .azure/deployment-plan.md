@@ -114,7 +114,7 @@ Record each command and result as work progresses.
 | REM-013 Terraform validation and TFLint | Passed; private endpoint, private DNS zone/link, and private-only vault configuration are valid |
 | REM-013 targeted plan | Passed; `key-vault-private-endpoint.tfplan` contains 3 additions, 0 changes, and 0 destroys |
 | REM-013 targeted apply | Passed; 3 resources added, 0 changed, and 0 destroyed; endpoint provisioning succeeded and its Key Vault connection is approved |
-| REM-013 live network verification | Passed; `hermes-kv-hfbdww` remains private-only with no IP rules, and private DNS maps it to `10.10.2.5` |
+| REM-013 live network verification | Passed; the dedicated Key Vault remains private-only with no IP rules, and private DNS maps it to an address inside the private-endpoint subnet |
 | Post-REM-013 application verification | Passed; `hermes-app--393j8ai` remains healthy, provisioned, active, and receives 100% of traffic |
 | Post-REM-013 state backup | Passed; `terraform.tfstate.20260806T211201Z.backup` and SHA-256 sidecar created locally and ignored by Git |
 | REM-013 secret bootstrap execution | Passed; `hermes-secret-bootstrap-sw2am5p` completed with exit code 0 after both private Key Vault writes |
@@ -124,7 +124,7 @@ Record each command and result as work progresses.
 | Hermes runtime Key Vault role | Passed; `hermes-id` has vault-scoped `Key Vault Secrets User`; targeted apply added 1 resource with no changes or destroys |
 | Final Hermes rollout | Passed; `hermes-app` updated in place to the digest-pinned image and private Key Vault references; no Azure resource was replaced or destroyed |
 | Final application verification | Passed; `hermes-app--0000001` is healthy, provisioned, latest-ready, and receives 100% of traffic; the previous healthy revision remains active at 0% for rollback |
-| Final endpoint and security verification | Passed; HTTPS returned 200, ingress remains restricted to `139.94.119.28/32`, and Key Vault remains RBAC-enabled, deny-by-default, private-only, and connected through an approved private endpoint |
+| Final endpoint and security verification | Passed; HTTPS returned 200, ingress remains restricted to the operator's approved IPv4 CIDR, and Key Vault remains RBAC-enabled, deny-by-default, private-only, and connected through an approved private endpoint |
 | Final authenticated UI verification | Passed; operator confirmed the Hermes UI is reachable and login succeeds with the Key Vault-backed dashboard credentials |
 | Final Terraform convergence | Passed; a fresh full `terraform plan -detailed-exitcode` reported no changes |
 | Final state backup | Passed; `terraform.tfstate.20260806T214559Z.backup` and SHA-256 sidecar were created with private permissions, checksum-verified, and ignored by Git |
@@ -132,8 +132,8 @@ Record each command and result as work progresses.
 | Tailscale credential cleanup | Passed; the job secret was scrubbed and the temporary job, write role, and identity were destroyed; no secret-bootstrap resources remain in Azure or Terraform state |
 | Tailscale ACA runtime correction | Passed; `TS_KUBE_SECRET` explicitly disables Kubernetes state inference, and the sidecar waits for `BackendState: Running` before configuring the Service with `tailscale serve` |
 | Tailscale durable revision health | Passed; `hermes-app--0000004` is the only active revision, is healthy and provisioned at 100% traffic, and both `hermes` and `tailscale` are ready/running with zero restarts |
-| Tailscale Service ownership | Passed; the admin console reports the new host Connected, and the macOS client routes the Service VIP to `hermes-aca-1.taile1e16.ts.net` after the prior probe revision retired |
-| Tailscale private HTTPS verification | Passed; with only revision `0000004` active, `https://hermes.taile1e16.ts.net` returned HTTP/2 `302` to `/login?next=%2F` from Hermes/Uvicorn |
+| Tailscale Service ownership | Passed; the admin console reports the new host Connected, and the macOS client routes the Service VIP to `hermes-aca-1.<tailnet>.ts.net` after the prior probe revision retired |
+| Tailscale private HTTPS verification | Passed; with only revision `0000004` active, `https://hermes.<tailnet>.ts.net` returned HTTP/2 `302` to `/login?next=%2F` from Hermes/Uvicorn |
 | Tailscale authenticated browser acceptance | Passed; operator confirmed the private Service URL loads and authenticated login succeeds while connected to Tailscale |
 | Tailscale native-client acceptance | Pending operator confirmation; restricted Azure ingress remains enabled as the recovery path until the macOS/iOS WebSocket check passes |
 
@@ -169,7 +169,7 @@ Record each command and result as work progresses.
 - 2026-08-06: REM-011 completed locally. Added a digest-pinned Tailscale userspace sidecar with an ephemeral tagged identity and stable `svc:hermes` endpoint, plus complete Tailscale admin and staged migration documentation. No plan, apply, Tailscale mutation, or Azure mutation was run.
 - 2026-08-06: Key Vault bootstrap applied successfully and a checksummed local state snapshot was created. Live verification found the vault private-only with no private endpoint, so the complete application plan was declared stale and not applied.
 - 2026-08-06: REM-013 added a Key Vault private endpoint and private DNS path. Static validation passed; deployment remains blocked until an approved operator network path can seed and verify the required secrets.
-- 2026-08-06: A temporary `139.94.119.28/32` Key Vault exception was attempted with operator approval. Azure policy restored disabled public access before data-plane access succeeded; no secret was created, and verification confirmed the temporary IP rule was removed.
+- 2026-08-06: A temporary Key Vault IP exception for the operator's address was attempted with operator approval. Azure policy restored disabled public access before data-plane access succeeded; no secret was created, and verification confirmed the temporary IP rule was removed.
 - 2026-08-06: Applied and verified REM-013's targeted private-connectivity plan: the private DNS zone, VNet link, and approved Key Vault private endpoint were added without changing or destroying existing resources. The current Hermes revision remained healthy. Required secrets are still absent and block the complete app rollout.
 - 2026-08-06: REM-013 completed. A temporary VNet-hosted Container Apps Job used a dedicated managed identity to create both required secrets through the private endpoint. Execution completed successfully, the temporary password was scrubbed, all three bootstrap resources and their privilege were destroyed, and the existing Hermes revision remained healthy.
 - 2026-08-06: Granted the existing Hermes runtime identity vault-scoped `Key Vault Secrets User`, then applied the reviewed final rollout. Revision `hermes-app--0000001` is healthy and latest-ready at 100% traffic with the digest-pinned image and private Key Vault references; Terraform converges with no changes, and the final local state snapshot is checksum-verified.
