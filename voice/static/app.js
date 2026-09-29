@@ -259,7 +259,7 @@
     }
     recording = true;
     talkBtn.classList.add('recording');
-    talkLabel.textContent = 'Listening…';
+    talkLabel.textContent = 'Transmitting…';
     player.flush();
     send({ type: 'cancel' });
     refreshFaceState();
@@ -405,8 +405,17 @@
     });
   }
 
-  $('btn-transcript').addEventListener('click', () => { transcriptPanel.hidden = !transcriptPanel.hidden; });
-  $('btn-debug').addEventListener('click', () => { debugPanel.hidden = !debugPanel.hidden; });
+  function toggleLog() {
+    const hidden = document.body.classList.toggle('log-hidden');
+    $('btn-transcript').setAttribute('aria-expanded', String(!hidden));
+    window.dispatchEvent(new Event('resize'));
+  }
+  function toggleDebug() {
+    debugPanel.hidden = !debugPanel.hidden;
+    $('btn-debug').setAttribute('aria-expanded', String(!debugPanel.hidden));
+  }
+  $('btn-transcript').addEventListener('click', toggleLog);
+  $('btn-debug').addEventListener('click', toggleDebug);
 
   const typing = () => document.activeElement === textInput;
   window.addEventListener('keydown', (e) => {
@@ -420,7 +429,7 @@
     } else if (e.key === 'Escape') {
       cancel();
     } else if (e.key === 'd' || e.key === 'D') {
-      debugPanel.hidden = !debugPanel.hidden;
+      toggleDebug();
     }
   });
   window.addEventListener('keyup', (e) => {

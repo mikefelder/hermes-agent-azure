@@ -7,43 +7,48 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <main id="stage">
-    <canvas id="face" aria-label="Character face"></canvas>
-    <div id="status" role="status" aria-live="polite">connecting…</div>
-    <div id="caption" aria-live="polite"></div>
-  </main>
-
   <header id="topbar">
+    <span class="brand">HERMES<span class="sep">//</span><span class="who-name"></span></span>
     <div class="persona-switch" role="radiogroup" aria-label="Persona">
       <button type="button" data-persona="rocky" role="radio" aria-checked="true">Rocky</button>
       <button type="button" data-persona="tars" role="radio" aria-checked="false">TARS</button>
     </div>
     <div class="spacer"></div>
-    <button type="button" id="btn-transcript" aria-expanded="false">Transcript</button>
+    <button type="button" id="btn-transcript" aria-expanded="true">Log</button>
     <button type="button" id="btn-debug" aria-expanded="false" title="Toggle metrics (D)">Metrics</button>
   </header>
+
+  <main id="stage">
+    <div class="pane-title">VOICE LINK</div>
+    <canvas id="face" aria-label="Character face"></canvas>
+    <div id="status" role="status" aria-live="polite">connecting…</div>
+    <div id="caption" aria-live="polite"></div>
+  </main>
+
+  <aside id="transcript">
+    <h2>Session log</h2>
+    <ol id="transcript-list"></ol>
+  </aside>
 
   <footer id="controls">
     <button type="button" id="btn-talk" aria-label="Hold to talk">
       <span class="dot"></span><span class="label">Hold to talk</span>
     </button>
     <form id="text-form" autocomplete="off">
-      <input id="text-input" type="text" maxlength="2000" placeholder="…or type here" aria-label="Message">
+      <span class="prompt" aria-hidden="true">&gt;</span>
+      <input id="text-input" type="text" maxlength="2000" placeholder="type a message, or hold space to talk" aria-label="Message">
       <button type="submit">Send</button>
     </form>
     <button type="button" id="btn-stop" title="Stop (Esc)">Stop</button>
   </footer>
-
-  <aside id="transcript" hidden>
-    <h2>Transcript</h2>
-    <ol id="transcript-list"></ol>
-  </aside>
 
   <aside id="debug" hidden>
     <h2>Metrics</h2>
     <dl id="metrics"></dl>
     <ol id="events"></ol>
   </aside>
+
+  <div class="scanlines" aria-hidden="true"></div>
 
   <script src="/static/faces.js"></script>
   <script src="/static/app.js"></script>
