@@ -378,3 +378,56 @@ variable "gateway_secret_names" {
     error_message = "gateway_secret_names keys must remain unique after lowercasing and replacing underscores with hyphens."
   }
 }
+
+variable "enable_voice" {
+  description = "Deploy the voice-character sidecar (Rocky/TARS web UI). Requires enable_api_server and enable_tailscale."
+  type        = bool
+  default     = false
+}
+
+variable "voice_image_tag" {
+  description = "Tag for the hermes-voice image built from ./voice into the ACR."
+  type        = string
+  default     = "v1"
+}
+
+variable "voice_chat_deployment" {
+  description = "Foundry deployment used for the fast conversational route (must already exist)."
+  type        = string
+  default     = "gpt-4.1-mini"
+}
+
+variable "voice_fish_api_key_secret_name" {
+  description = "Key Vault secret holding the fish.audio API key. Populate it out of band before enabling voice."
+  type        = string
+  default     = "fish-api-key"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9-]{1,127}$", var.voice_fish_api_key_secret_name))
+    error_message = "voice_fish_api_key_secret_name must be a valid Azure Key Vault secret name."
+  }
+}
+
+variable "voice_fish_model" {
+  description = "fish.audio TTS model header value."
+  type        = string
+  default     = "s1"
+}
+
+variable "voice_rocky_voice_id" {
+  description = "fish.audio reference voice ID for the Rocky persona."
+  type        = string
+  default     = "6dd07916890445e59c5f019ad0fc7879"
+}
+
+variable "voice_tars_voice_id" {
+  description = "fish.audio reference voice ID for the TARS persona."
+  type        = string
+  default     = "6a57e35f5c8244dbb5d012a3c434ec16"
+}
+
+variable "voice_serve_port" {
+  description = "Tailscale HTTPS port that serves the voice web UI."
+  type        = number
+  default     = 8444
+}

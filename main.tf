@@ -38,6 +38,14 @@ locals {
     "${local.tailscale_service_url}:${local.api_server_serve_port}"
   ) : null
 
+  # Voice sidecar (web UI + WebSocket). Loopback only; published via Tailscale.
+  voice_port                  = 8765
+  voice_fish_container_secret = "fish-api-key"
+  voice_url                   = var.enable_voice ? "${local.tailscale_service_url}:${var.voice_serve_port}" : null
+
+  # ACR is needed for either the Hermes source build or the voice image.
+  need_acr = var.build_image_from_source || var.enable_voice
+
   network_cidrs = {
     vnet = var.vnet_address_space
     aca  = var.aca_subnet_prefix
@@ -101,6 +109,7 @@ locals {
   all_container_secret_names = concat(
     local.normalized_secret_names,
     var.enable_tailscale ? [local.tailscale_container_secret_name] : [],
+    var.enable_voice ? [local.voice_fish_container_secret] : [],
   )
 
   reserved_env_names = toset(concat([
@@ -126,6 +135,12 @@ locals {
     var.enable_tailscale ? {
       (local.tailscale_container_secret_name) = {
         key_vault_secret_id = "${azurerm_key_vault.hermes.vault_uri}secrets/${var.tailscale_oauth_client_secret_name}"
+      }
+    } : {},
+    # Referenced only by the voice container, never exposed to Hermes.
+    var.enable_voice ? {
+      (local.voice_fish_container_secret) = {
+        key_vault_secret_id = "${azurerm_key_vault.hermes.vault_uri}secrets/${var.voice_fish_api_key_secret_name}"
       }
     } : {},
   )
@@ -238,10 +253,10 @@ resource "azurerm_role_assignment" "foundry_access" {
 }
 
 # =============================================================================
-# Container registry (only when building the cloned repo from source)
+# Container registry (when building Hermes from source or the voice sidecar)
 # =============================================================================
 resource "azurerm_container_registry" "hermes" {
-  count = var.build_image_from_source ? 1 : 0
+  count = local.need_acr ? 1 : 0
 
   name                = local.acr_name
   resource_group_name = azurerm_resource_group.hermes.name
@@ -252,7 +267,7 @@ resource "azurerm_container_registry" "hermes" {
 }
 
 resource "azurerm_role_assignment" "acr_pull" {
-  count = var.build_image_from_source ? 1 : 0
+  count = local.need_acr ? 1 : 0
 
   scope                = azurerm_container_registry.hermes[0].id
   role_definition_name = "AcrPull"
@@ -291,6 +306,41 @@ resource "null_resource" "image_build" {
       ACR_NAME      = azurerm_container_registry.hermes[0].name
       IMAGE_TAG     = var.image_tag
       BUILD_CONTEXT = local.build_context
+    }
+  }
+}
+
+# Build + push the voice sidecar image from ./voice. Re-runs when any file in
+# ./voice or voice_image_tag changes.
+resource "null_resource" "voice_image_build" {
+  count = var.enable_voice ? 1 : 0
+
+  triggers = {
+    acr            = azurerm_container_registry.hermes[0].name
+    image_tag      = var.voice_image_tag
+    source_version = sha1(join("", [for f in sort(fileset("${path.module}/voice", "**")) : filesha1("${path.module}/voice/${f}")]))
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -euo pipefail
+      command -v az >/dev/null 2>&1 || {
+        printf 'Azure CLI (az) is required to build the voice image.\n' >&2
+        exit 127
+      }
+      az acr build \
+        --registry "$ACR_NAME" \
+        --image "hermes-voice:$IMAGE_TAG" \
+        --file "$BUILD_CONTEXT/Dockerfile" \
+        "$BUILD_CONTEXT"
+    EOT
+
+    interpreter = ["/usr/bin/env", "bash", "-c"]
+
+    environment = {
+      ACR_NAME      = azurerm_container_registry.hermes[0].name
+      IMAGE_TAG     = var.voice_image_tag
+      BUILD_CONTEXT = abspath("${path.module}/voice")
     }
   }
 }
@@ -572,6 +622,16 @@ resource "azurerm_container_app" "hermes" {
       condition     = length(setintersection(toset(keys(var.gateway_env)), toset(keys(local.secret_names)))) == 0
       error_message = "An environment variable cannot be declared in both gateway_env and gateway_secret_names."
     }
+
+    precondition {
+      condition     = !var.enable_voice || (var.enable_api_server && var.enable_tailscale)
+      error_message = "enable_voice requires enable_api_server and enable_tailscale."
+    }
+
+    precondition {
+      condition     = !var.enable_voice || !contains([443, local.api_server_serve_port], var.voice_serve_port)
+      error_message = "voice_serve_port must not collide with the dashboard (443) or API server serve port."
+    }
   }
 
   identity {
@@ -580,7 +640,7 @@ resource "azurerm_container_app" "hermes" {
   }
 
   dynamic "registry" {
-    for_each = var.build_image_from_source ? [1] : []
+    for_each = local.need_acr ? [1] : []
     content {
       server   = azurerm_container_registry.hermes[0].login_server
       identity = azurerm_user_assigned_identity.hermes.id
@@ -688,6 +748,7 @@ resource "azurerm_container_app" "hermes" {
 
           /usr/local/bin/tailscale serve --service=${local.tailscale_service_id} --https=443 http://127.0.0.1:9119
           ${var.enable_api_server ? "/usr/local/bin/tailscale serve --service=${local.tailscale_service_id} --https=${local.api_server_serve_port} http://127.0.0.1:${local.api_server_port}" : ":"}
+          ${var.enable_voice ? "/usr/local/bin/tailscale serve --service=${local.tailscale_service_id} --https=${var.voice_serve_port} http://127.0.0.1:${local.voice_port}" : ":"}
           wait "$child_pid"
         EOT
         ]
@@ -748,6 +809,80 @@ resource "azurerm_container_app" "hermes" {
       }
     }
 
+    dynamic "container" {
+      for_each = var.enable_voice ? [1] : []
+      content {
+        name   = "voice"
+        image  = "${azurerm_container_registry.hermes[0].login_server}/hermes-voice:${var.voice_image_tag}"
+        cpu    = 0.25
+        memory = "0.5Gi"
+
+        env {
+          name  = "FOUNDRY_ENDPOINT"
+          value = "https://${local.foundry_name}.cognitiveservices.azure.com"
+        }
+
+        env {
+          name  = "AZURE_CLIENT_ID"
+          value = azurerm_user_assigned_identity.hermes.client_id
+        }
+
+        env {
+          name  = "VOICE_CHAT_DEPLOYMENT"
+          value = var.voice_chat_deployment
+        }
+
+        env {
+          name  = "FISH_MODEL"
+          value = var.voice_fish_model
+        }
+
+        env {
+          name  = "ROCKY_VOICE_ID"
+          value = var.voice_rocky_voice_id
+        }
+
+        env {
+          name  = "TARS_VOICE_ID"
+          value = var.voice_tars_voice_id
+        }
+
+        env {
+          name  = "HERMES_URL"
+          value = "http://127.0.0.1:${local.api_server_port}"
+        }
+
+        env {
+          name  = "HOST"
+          value = "127.0.0.1"
+        }
+
+        env {
+          name  = "PORT"
+          value = tostring(local.voice_port)
+        }
+
+        env {
+          name        = "FISH_API_KEY"
+          secret_name = local.voice_fish_container_secret
+        }
+
+        env {
+          name        = "HERMES_API_KEY"
+          secret_name = "api-server-key"
+        }
+
+        liveness_probe {
+          transport               = "HTTP"
+          port                    = local.voice_port
+          path                    = "/healthz"
+          interval_seconds        = 30
+          timeout                 = 5
+          failure_count_threshold = 3
+        }
+      }
+    }
+
     volume {
       name         = "data"
       storage_type = "NfsAzureFile"
@@ -788,5 +923,6 @@ resource "azurerm_container_app" "hermes" {
     azurerm_private_endpoint.storage_file,
     azurerm_private_dns_zone_virtual_network_link.file,
     null_resource.image_build,
+    null_resource.voice_image_build,
   ]
 }

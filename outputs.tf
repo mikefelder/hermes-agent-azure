@@ -18,6 +18,11 @@ output "api_server_url" {
   value       = local.api_server_url
 }
 
+output "voice_url" {
+  description = "Voice character web UI over Tailscale, or null when voice is disabled."
+  value       = local.voice_url
+}
+
 output "container_app_name" {
   description = "Container App resource name for Azure CLI operations."
   value       = azurerm_container_app.hermes.name
@@ -84,6 +89,7 @@ output "next_steps" {
          Username:  ${var.dashboard_username}
          Password:  (from step 1)
     3. ${var.enable_api_server ? "Point API clients (iOS app, OpenAI SDKs) at the API server, not the dashboard:\n         Base URL:  ${local.api_server_url}\n         Auth:      Authorization: Bearer <${var.api_server_key_secret_name}>\n         Verify:    curl -H \"Authorization: Bearer $KEY\" ${local.api_server_url}/v1/models" : "API server disabled. Set enable_api_server = true to expose /v1/... over Tailscale."}
+    ${var.enable_voice ? "Voice UI (Rocky/TARS): ${local.voice_url}" : "Voice UI disabled. Set enable_voice = true after storing the fish.audio key in Key Vault."}
     4. To enable a messaging platform, add its Key Vault secret name to
        gateway_secret_names, populate that secret out of band, and re-apply.
     5. Tail logs:
