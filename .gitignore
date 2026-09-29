@@ -17,3 +17,11 @@ override.tf.json
 # Python
 __pycache__/
 *.py[cod]
+
+# ESPHome
+esphome/secrets.yaml
+esphome/.esphome/
+# Voice sidecar local env
+voice/.env
+esphome/.cache/
+voice/.venv/
