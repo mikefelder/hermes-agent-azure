@@ -414,6 +414,17 @@
     debugPanel.hidden = !debugPanel.hidden;
     $('btn-debug').setAttribute('aria-expanded', String(!debugPanel.hidden));
   }
+  function setFace(on) {
+    document.body.classList.toggle('face-hidden', !on);
+    $('btn-face').setAttribute('aria-expanded', String(on));
+    localStorage.setItem('voice.face', on ? 'on' : 'off');
+    window.dispatchEvent(new Event('resize'));
+  }
+  function toggleFace() {
+    setFace(document.body.classList.contains('face-hidden'));
+  }
+  setFace(localStorage.getItem('voice.face') === 'on');
+  $('btn-face').addEventListener('click', toggleFace);
   $('btn-transcript').addEventListener('click', toggleLog);
   $('btn-debug').addEventListener('click', toggleDebug);
 
@@ -430,6 +441,8 @@
       cancel();
     } else if (e.key === 'd' || e.key === 'D') {
       toggleDebug();
+    } else if (e.key === 'f' || e.key === 'F') {
+      toggleFace();
     }
   });
   window.addEventListener('keyup', (e) => {

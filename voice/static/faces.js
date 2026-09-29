@@ -248,7 +248,9 @@
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       level = approach(level, rawLevel, rawLevel > level ? 0.5 : 0.15);
-      if (persona === 'tars') drawTars(now, dt); else drawRocky(now, dt);
+      if (!document.body.classList.contains('face-hidden')) {
+        if (persona === 'tars') drawTars(now, dt); else drawRocky(now, dt);
+      }
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);

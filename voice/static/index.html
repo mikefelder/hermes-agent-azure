@@ -6,7 +6,7 @@
   <title>Hermes Voice</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="face-hidden">
   <header id="topbar">
     <span class="brand">HERMES<span class="sep">//</span><span class="who-name"></span></span>
     <div class="persona-switch" role="radiogroup" aria-label="Persona">
@@ -14,6 +14,7 @@
       <button type="button" data-persona="tars" role="radio" aria-checked="false">TARS</button>
     </div>
     <div class="spacer"></div>
+    <button type="button" id="btn-face" aria-expanded="false" title="Toggle face (F)">Face</button>
     <button type="button" id="btn-transcript" aria-expanded="true">Log</button>
     <button type="button" id="btn-debug" aria-expanded="false" title="Toggle metrics (D)">Metrics</button>
   </header>
@@ -47,8 +48,6 @@
     <dl id="metrics"></dl>
     <ol id="events"></ol>
   </aside>
-
-  <div class="scanlines" aria-hidden="true"></div>
 
   <script src="/static/faces.js"></script>
   <script src="/static/app.js"></script>

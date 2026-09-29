@@ -1,3 +1,14 @@
+@font-face {
+  font-family: "Berkeley Mono";
+  src: local("Berkeley Mono"), local("BerkeleyMono-Regular"), url("fonts/BerkeleyMono-Regular.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Berkeley Mono";
+  src: local("Berkeley Mono Bold"), local("BerkeleyMono-Bold"), url("fonts/BerkeleyMono-Bold.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
 :root {
   --bg: #0a0703;
   --fg: #f2b45c;
@@ -6,9 +17,7 @@
   --accent: #ffcf7a;
   --alert: #ff5a3d;
   --line: rgba(242, 180, 92, 0.35);
-  --panel: rgba(242, 180, 92, 0.04);
-  --glow: 0 0 6px rgba(242, 180, 92, 0.55);
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --mono: "Berkeley Mono", "BerkeleyMono", "TX-02", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 body.tars {
   --bg: #07080a;
@@ -17,17 +26,16 @@ body.tars {
   --muted: #4d5259;
   --accent: #ffffff;
   --line: rgba(212, 216, 222, 0.3);
-  --panel: rgba(212, 216, 222, 0.04);
-  --glow: 0 0 6px rgba(212, 216, 222, 0.45);
 }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 body {
-  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--bg) 80%, var(--fg) 6%) 0%, var(--bg) 75%);
+  background: var(--bg);
   color: var(--fg);
   font: 14px/1.45 var(--mono);
-  text-shadow: var(--glow);
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: antialiased;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 38%);
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -39,7 +47,7 @@ body {
 body.log-hidden { grid-template-areas: "top top" "stage stage" "ctrl ctrl"; }
 body.log-hidden #transcript { display: none; }
 
-button, input { font: inherit; color: inherit; text-shadow: inherit; }
+button, input { font: inherit; color: inherit; }
 button {
   background: transparent;
   border: 0;
@@ -50,7 +58,7 @@ button {
 }
 button::before { content: "[ "; color: var(--dim); }
 button::after { content: " ]"; color: var(--dim); }
-button:hover, button:focus-visible { background: var(--fg); color: var(--bg); text-shadow: none; outline: none; }
+button:hover, button:focus-visible { background: var(--fg); color: var(--bg); outline: none; }
 button:hover::before, button:hover::after,
 button:focus-visible::before, button:focus-visible::after { color: var(--bg); }
 
@@ -71,13 +79,12 @@ body.tars .brand .who-name::after { content: "TARS"; }
 .persona-switch button[aria-checked="true"] { color: var(--accent); }
 .persona-switch button[aria-checked="true"]::before { content: "[*"; }
 .spacer { flex: 1; }
-#btn-transcript[aria-expanded="true"], #btn-debug[aria-expanded="true"] { color: var(--accent); }
+#btn-face[aria-expanded="true"], #btn-transcript[aria-expanded="true"], #btn-debug[aria-expanded="true"] { color: var(--accent); }
 
 /* ---- panes ---- */
 #stage, #transcript {
   position: relative;
   border: 1px solid var(--line);
-  background: var(--panel);
   min-height: 0;
 }
 .pane-title, #transcript h2, #debug h2 {
@@ -95,6 +102,7 @@ body.tars .brand .who-name::after { content: "TARS"; }
 }
 #stage { grid-area: stage; }
 #face { display: block; width: 100%; height: 100%; }
+body.face-hidden #face { display: none; }
 #status {
   position: absolute;
   left: 12px;
@@ -155,7 +163,7 @@ body.tars .brand .who-name::after { content: "TARS"; }
   caret-color: var(--accent);
   padding: 4px 0;
 }
-#text-input::placeholder { color: var(--muted); text-shadow: none; }
+#text-input::placeholder { color: var(--muted); }
 #btn-stop:hover { background: var(--alert); }
 
 /* ---- metrics overlay ---- */
@@ -178,14 +186,6 @@ body.tars .brand .who-name::after { content: "TARS"; }
 #metrics dd { margin: 0; }
 #events { list-style: none; margin: 0; padding: 0; color: var(--dim); }
 
-/* ---- CRT ---- */
-.scanlines {
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,0.22) 3px);
-  z-index: 10;
-}
 @keyframes blink { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) {
   #btn-talk.recording .dot { animation: none; }
