@@ -572,38 +572,31 @@ workflow above. Do not replace a pinned version with `main` or `latest`.
 
 ## Voice character (Rocky / TARS)
 
-An optional sidecar (`./voice`) adds a browser voice UI with an animated robot face. It follows a "fast voice / slow brain" split:
+The optional voice sidecar adds a browser voice UI for the Rocky and TARS personas. Its source lives in a separate repo, **hermes-voice**, which also holds the local dev instructions, the latency spike, and the Home Assistant Voice PE (ESPHome) work. This repo keeps only the Terraform that builds and runs the sidecar next to Hermes.
 
-- **Casual chat** goes straight to a small Foundry chat deployment (default `gpt-4.1-mini`, ~1–1.7s to first token).
-- **Agent work** (tools, lookups, memory) is handed to Hermes over `http://127.0.0.1:8642`. An in-character filler line plays while Hermes works.
-- **Speech-to-text** uses Foundry (Azure Speech fast transcription) through the app's managed identity.
-- **Text-to-speech** uses fish.audio with a per-persona reference voice.
+The sidecar follows a "fast voice / slow brain" split:
+
+- **Casual chat** goes straight to a small Foundry chat deployment (default `gpt-4.1-mini`).
+- **Agent work** is handed to Hermes over `http://127.0.0.1:8642`.
+- **Speech-to-text** uses Foundry through the app's managed identity; **text-to-speech** uses fish.audio.
 
 Enable it:
 
-1. Store the fish.audio **API** key in Key Vault. API credit is billed separately from fish.audio platform credit.
+1. Clone hermes-voice next to this repo (the default `voice_source_dir` is `../hermes-voice/voice`). Set `voice_source_dir` in `terraform.tfvars` if you clone it elsewhere.
+   ```text
+   hermes/
+   ├── hermes-agent-azure/   # this repo
+   └── hermes-voice/         # sidecar source (voice/)
+   ```
+2. Store the fish.audio **API** key in Key Vault. API credit is billed separately from fish.audio platform credit.
    ```bash
    az keyvault secret set --vault-name <kv-name> --name fish-api-key --value <key>
    ```
-2. Make sure the chat deployment named by `voice_chat_deployment` exists in the Foundry account.
-3. Set these values in `terraform.tfvars`, then apply. `enable_api_server` and `enable_tailscale` must both be true.
-   ```hcl
-   enable_voice = true
-   ```
-4. Open `terraform output voice_url` from a tailnet device (default `https://<tailscale-host>:8444`). Grant microphone access, pick Rocky or TARS, and hold the talk button or type.
+3. Make sure the chat deployment named by `voice_chat_deployment` exists in the Foundry account.
+4. Set `enable_voice = true` in `terraform.tfvars` and apply. `enable_api_server` and `enable_tailscale` must both be true.
+5. Open `terraform output voice_url` from a tailnet device (default `https://<tailscale-host>:8444`).
 
-The image is built in ACR from `./voice` and rebuilt when those files change. If transcription returns 401/403, give the app identity the `Cognitive Services User` role through `foundry_role_definition_names`.
-
-Run it locally against a deployed instance (requires `az login` and `pip install -r voice/requirements.txt`):
-
-```bash
-FOUNDRY_ENDPOINT=https://<foundry>.cognitiveservices.azure.com \
-HERMES_URL=https://<tailscale-host>:8443 HERMES_API_KEY=<api key> \
-FISH_API_KEY=<fish key> python3 voice/server.py
-# open http://127.0.0.1:8765
-```
-
-`FOUNDRY_ENDPOINT` accepts any Foundry URL; the sidecar keeps only the scheme and host. `HERMES_URL` must point at the Hermes API that serves `/v1/responses` (the `hermes` Tailscale host), not the web UI host. If the character answers with its error line, check the server log for the failing URL.
+The image is built in ACR from `voice_source_dir` and rebuilt when its files change (`.venv/`, `__pycache__/`, and `.env` are ignored). If transcription returns 401/403, give the app identity the `Cognitive Services User` role through `foundry_role_definition_names`. See the hermes-voice README for running the sidecar locally.
 
 ## Add a messaging platform
 

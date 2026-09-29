@@ -42,6 +42,7 @@ locals {
   voice_port                  = 8765
   voice_fish_container_secret = "fish-api-key"
   voice_url                   = var.enable_voice ? "${local.tailscale_service_url}:${var.voice_serve_port}" : null
+  voice_src                   = abspath("${path.module}/${var.voice_source_dir}")
 
   # ACR is needed for either the Hermes source build or the voice image.
   need_acr = var.build_image_from_source || var.enable_voice
@@ -310,15 +311,16 @@ resource "null_resource" "image_build" {
   }
 }
 
-# Build + push the voice sidecar image from ./voice. Re-runs when any file in
-# ./voice or voice_image_tag changes.
+# Build + push the voice sidecar image from var.voice_source_dir (the voice/
+# folder of the separate hermes-voice repo). Re-runs when any source file or
+# voice_image_tag changes.
 resource "null_resource" "voice_image_build" {
   count = var.enable_voice ? 1 : 0
 
   triggers = {
     acr            = azurerm_container_registry.hermes[0].name
     image_tag      = var.voice_image_tag
-    source_version = sha1(join("", [for f in sort(fileset("${path.module}/voice", "**")) : filesha1("${path.module}/voice/${f}")]))
+    source_version = sha1(join("", [for f in sort(fileset(local.voice_src, "**")) : filesha1("${local.voice_src}/${f}") if !startswith(f, ".venv/") && !strcontains(f, "__pycache__/") && f != ".env"]))
   }
 
   provisioner "local-exec" {
@@ -340,7 +342,7 @@ resource "null_resource" "voice_image_build" {
     environment = {
       ACR_NAME      = azurerm_container_registry.hermes[0].name
       IMAGE_TAG     = var.voice_image_tag
-      BUILD_CONTEXT = abspath("${path.module}/voice")
+      BUILD_CONTEXT = local.voice_src
     }
   }
 }

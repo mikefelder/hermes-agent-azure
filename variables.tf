@@ -431,3 +431,9 @@ variable "voice_serve_port" {
   type        = number
   default     = 8444
 }
+
+variable "voice_source_dir" {
+  description = "Path (relative to this module) to the voice sidecar build context — the voice/ folder of the hermes-voice repo, cloned as a sibling by default."
+  type        = string
+  default     = "../hermes-voice/voice"
+}
