@@ -27,6 +27,10 @@
 
   const approach = (cur, tgt, k) => cur + (tgt - cur) * k;
 
+  // Optional WebGL renderer for Rocky, registered asynchronously by rocky3d.js.
+  let rocky3dFactory = null;
+  const instances = [];
+
   function create(canvas) {
     const ctx = canvas.getContext('2d');
     let persona = 'rocky';
@@ -244,22 +248,53 @@
       if (now < blinkUntil) { ctx.fillStyle = '#0a1210'; ctx.fillRect(sx, sy, sw, sh); }
     }
 
+    let r3d = null;
+    function attach3D() {
+      if (r3d || !rocky3dFactory) return;
+      const host = document.getElementById('face3d');
+      if (!host) return;
+      try {
+        r3d = rocky3dFactory(host);
+      } catch (err) {
+        console.warn('Rocky 3D unavailable, using 2D face:', err);
+        r3d = null;
+      }
+      sync3D();
+    }
+    function sync3D() {
+      const on = !!r3d && persona === 'rocky';
+      canvas.style.visibility = on ? 'hidden' : '';
+      document.body.classList.toggle('rocky3d', on);
+      if (r3d) r3d.setActive(on);
+    }
+
     function frame(now) {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       level = approach(level, rawLevel, rawLevel > level ? 0.5 : 0.15);
-      if (persona === 'tars') drawTars(now, dt); else drawRocky(now, dt);
+      if (persona === 'tars') drawTars(now, dt);
+      else if (r3d) r3d.frame(now, dt, { state, emotion, level });
+      else drawRocky(now, dt);
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
 
-    return {
-      setPersona(p) { persona = p === 'tars' ? 'tars' : 'rocky'; ripples.length = 0; },
+    const api = {
+      attach3D,
+      setPersona(p) { persona = p === 'tars' ? 'tars' : 'rocky'; ripples.length = 0; sync3D(); },
       setEmotion(e) { emotion = (ROCKY[e] ? e : 'neutral'); },
       setState(s) { state = s; },
       setLevel(l) { rawLevel = Math.max(0, Math.min(1, l)); },
     };
+    instances.push(api);
+    attach3D();
+    return api;
   }
 
-  window.Faces = { create };
+  function registerRocky3D(factory) {
+    rocky3dFactory = factory;
+    instances.forEach((f) => f.attach3D());
+  }
+
+  window.Faces = { create, registerRocky3D };
 })();
