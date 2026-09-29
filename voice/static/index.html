@@ -5,20 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hermes Voice</title>
   <link rel="stylesheet" href="/static/style.css">
-  <script type="importmap">{ "imports": { "three": "/static/vendor/three.module.min.js" } }</script>
 </head>
 <body>
   <main id="stage">
-    <div id="face3d" aria-hidden="true"></div>
     <canvas id="face" aria-label="Character face"></canvas>
-    <div id="hud" aria-hidden="true">
-      <div class="hud-corner tl"><span class="rec"></span>LINK · ERID-1 <em>↔</em> HAIL MARY</div>
-      <div class="hud-corner tr"><span id="hud-clock">00:00:00</span><span class="sig"><i></i><i></i><i></i><i></i><i></i></span></div>
-      <div class="hud-corner bl">XLAT · ERIDIAN→EN <span id="hud-state">IDLE</span></div>
-      <div class="hud-corner br">FREQ <span id="hud-freq">0000</span> Hz · Δt <span id="hud-lag">0</span> ms</div>
-      <div class="hud-frame"></div>
-      <div class="hud-scan"></div>
-    </div>
     <div id="status" role="status" aria-live="polite">connecting…</div>
     <div id="caption" aria-live="polite"></div>
   </main>
@@ -57,6 +47,5 @@
 
   <script src="/static/faces.js"></script>
   <script src="/static/app.js"></script>
-  <script type="module" src="/static/rocky3d.js"></script>
 </body>
 </html>

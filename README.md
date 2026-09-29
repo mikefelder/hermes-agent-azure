@@ -605,18 +605,6 @@ FISH_API_KEY=<fish key> python3 voice/server.py
 
 `FOUNDRY_ENDPOINT` accepts any Foundry URL; the sidecar keeps only the scheme and host. `HERMES_URL` must point at the Hermes API that serves `/v1/responses` (the `hermes` Tailscale host), not the web UI host. If the character answers with its error line, check the server log for the failing URL.
 
-### Rocky 3D video call
-
-The Rocky persona renders as a 3D model in a video-call frame with a telemetry HUD. It reacts to listening, thinking, speaking and emotion states. TARS keeps the 2D face. If WebGL or the renderer fails, the UI falls back to the 2D face.
-
-The mesh is loaded from `voice/static/models/rocky.bin`. That file is git-ignored because the source model's licence is unclear. Generate it from an STL (numpy is optional but much faster):
-
-```bash
-python3 scripts/rocky-model/convert.py path/to/rocky.stl --out voice/static/models/rocky.bin --target 60000
-```
-
-The ACR build uploads `./voice` from your working copy, so a generated `rocky.bin` is included in the image. If the file is missing, a procedural placeholder is rendered.
-
 ## Add a messaging platform
 
 Map the environment variable to a Key Vault secret name in `terraform.tfvars`:

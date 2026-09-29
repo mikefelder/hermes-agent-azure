@@ -17,6 +17,3 @@ override.tf.json
 # Python
 __pycache__/
 *.py[cod]
-
-# Rocky 3D model (regenerate via scripts/rocky-model/convert.py; asset license unclear)
-voice/static/models/
