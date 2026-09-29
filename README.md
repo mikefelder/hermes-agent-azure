@@ -603,6 +603,8 @@ FISH_API_KEY=<fish key> python3 voice/server.py
 # open http://127.0.0.1:8765
 ```
 
+`FOUNDRY_ENDPOINT` accepts any Foundry URL; the sidecar keeps only the scheme and host. `HERMES_URL` must point at the Hermes API that serves `/v1/responses` (the `hermes` Tailscale host), not the web UI host. If the character answers with its error line, check the server log for the failing URL.
+
 ## Add a messaging platform
 
 Map the environment variable to a Key Vault secret name in `terraform.tfvars`:

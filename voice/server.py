@@ -22,7 +22,18 @@ from personas import EMOTIONS, PERSONAS
 
 log = logging.getLogger("voice")
 
-FOUNDRY_ENDPOINT = os.environ.get("FOUNDRY_ENDPOINT", "").rstrip("/")
+def _foundry_base(url: str) -> str:
+    # Accept pasted URLs like https://x.services.ai.azure.com/openai/v1/responses
+    # and reduce them to the resource base (scheme://host).
+    url = url.strip()
+    if not url:
+        return ""
+    from urllib.parse import urlsplit
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}" if parts.netloc else url.rstrip("/")
+
+
+FOUNDRY_ENDPOINT = _foundry_base(os.environ.get("FOUNDRY_ENDPOINT", ""))
 CHAT_DEPLOYMENT = os.environ.get("VOICE_CHAT_DEPLOYMENT", "gpt-4.1-mini")
 CHAT_API_VERSION = os.environ.get("VOICE_CHAT_API_VERSION", "2025-01-01-preview")
 STT_API_VERSION = os.environ.get("VOICE_STT_API_VERSION", "2024-11-15")
