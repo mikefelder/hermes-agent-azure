@@ -222,8 +222,13 @@ resource "azurerm_cognitive_account" "foundry" {
   sku_name                      = "S0"
   custom_subdomain_name         = local.foundry_name
   local_auth_enabled            = false
+  project_management_enabled    = true
   public_network_access_enabled = true
   tags                          = var.tags
+
+  identity {
+    type = "SystemAssigned"
+  }
 }
 
 resource "azurerm_cognitive_deployment" "model" {

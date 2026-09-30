@@ -84,7 +84,7 @@ variable "build_image_from_source" {
 variable "public_image" {
   type        = string
   description = "Digest-pinned prebuilt image used when build_image_from_source = false."
-  default     = "docker.io/nousresearch/hermes-agent@sha256:16788311e2fa3035456bdc1bafb8ec2b1777db64ebf020af9bb7eb73c3712c9e"
+  default     = "docker.io/nousresearch/hermes-agent@sha256:fca358f12efd65bfaaca05884166f15c0e2788375ca30d77061ac1ebc96452b7"
 
   validation {
     condition     = can(regex("^[a-z0-9.-]+(?::[0-9]+)?/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$", var.public_image))
@@ -95,7 +95,7 @@ variable "public_image" {
 variable "image_tag" {
   type        = string
   description = "Tag used when building from source. Bump to force a rebuild."
-  default     = "v2026.8.3"
+  default     = "v2026.9.24"
 
   validation {
     condition = (
@@ -126,7 +126,7 @@ variable "hermes_source_repository" {
 variable "hermes_source_ref" {
   type        = string
   description = "Immutable release tag or full commit SHA of Hermes Agent to build."
-  default     = "v2026.8.3"
+  default     = "v2026.9.24"
 
   validation {
     condition = (
