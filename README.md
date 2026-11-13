@@ -41,7 +41,15 @@ dashboard login redirect, not JSON.
 
 ## Architecture
 
-<!-- mermaid-checked: no \n, no em-dash/en-dash, no {} in labels, subgraphs are id["label"], arrows are -->|"label"|, all subgraphs closed by end, ids unique -->
+[![Architecture: clients connect to Hermes through Tailscale or optional restricted ingress; Azure private endpoints provide storage and secrets, and managed identity authorizes Foundry inference.](docs/images/architecture.png)](docs/images/architecture.png)
+
+The diagram is a static image so it also displays in mobile clients without
+Mermaid support. Open the image to zoom in. When changing the source below,
+regenerate `docs/images/architecture.png` with Mermaid CLI (`mmdc`).
+
+<details>
+<summary>Mermaid diagram source</summary>
+
 ```mermaid
 flowchart LR
   subgraph ClientAccess["Client access"]
@@ -89,6 +97,8 @@ flowchart LR
   Identity -.->|"pulls private image"| Registry
   Registry -.->|"optional source build image"| Gateway
 ```
+
+</details>
 
 Key Vault and Azure Files expose no public data-plane path. The Container App
 reaches both through VNet private endpoints, while its user-assigned managed
